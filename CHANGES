@@ -1,0 +1,34 @@
+= Version 1.1.0, 2010-08-07 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Separating Hashable class to its own package
+and depending on it.
+
+
+= Version 1.0.0.3, 2010-08-07 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Improving the performance of HashSet and HashMap
+by using (Some a) datatype. This speeds up the
+case where only one value is stored for a given
+hash. The performance gain is ~10% for delete,
+~15% for insert, 20-50% for union.
+
+
+= Version 1.0.0.2, 2010-06-01 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Improving performance of ByteString hash
+by using inlinePerformIO.
+
+
+= Version 1.0.0.1, 2010-05-30 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Doc fixes
+
+
+= Version 1.0.0, 2010-05-30 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Adding module HashSet
+
+
+= Version 0.9.0, 2010-05-29 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Initial versions of HashMap, Hashable
