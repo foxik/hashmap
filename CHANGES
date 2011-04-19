@@ -1,3 +1,8 @@
+= Version 1.1.0.1, 2011-04-19 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Convert the repository to Git.
+
+
 = Version 1.1.0, 2010-08-15 =
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 * Separating Hashable class to its own package
