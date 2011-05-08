@@ -105,6 +105,11 @@ data Some a = Only !a | More !(S.Set a) deriving (Eq, Ord)
 -- subset of 'Data.IntSet.IntSet'.
 newtype Set a = Set (I.IntMap (Some a)) deriving (Eq, Ord)
 
+-- | The @HashSet@ is a type synonym for @Set@ for backward compatibility.
+-- It is deprecated and will be removed in furture releases.
+{-# DEPRECATED HashSet "HashSet is deprecated. Please use Set instead." #-}
+type HashSet a = Set a
+
 instance Ord a => Monoid (Set a) where
   mempty  = empty
   mappend = union

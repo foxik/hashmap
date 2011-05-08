@@ -162,6 +162,11 @@ data Some k v = Only !k v | More !(M.Map k v) deriving (Eq, Ord)
 -- subset of 'Data.IntMap.IntMap'.
 newtype Map k v = Map (I.IntMap (Some k v)) deriving (Eq, Ord)
 
+-- | The @HashMap@ is a type synonym for @Map@ for backward compatibility.
+-- It is deprecated and will be removed in furture releases.
+{-# DEPRECATED HashMap "HashMap is deprecated. Please use Map instead." #-}
+type HashMap k v = Map k v
+
 instance Functor (Map k) where
   fmap = map
 
