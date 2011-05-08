@@ -4,29 +4,32 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.HashSet
--- Copyright   :  (c) Milan Straka 2010
+-- Copyright   :  (c) Milan Straka 2011
 -- License     :  BSD-style
 -- Maintainer  :  fox@ucw.cz
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- Persistent 'HashSet', which is defined as
+-- Persistent 'Set' based on hashing, which is defined as
 --
 -- @
---   data 'HashSet' e = 'Data.IntMap.IntMap' ('Data.Set.Set' e)
+--   data 'Set' e = 'Data.IntMap.IntMap' (Some e)
 -- @
 --
 -- is an 'Data.IntMap.IntMap' indexed by hash values of elements,
--- containing a set @'Data.Set.Set' e@ with elements of the same hash values.
+-- containing a value of @Some e@. That contains either one 'e'
+-- or a @'Data.Set.Set' e@ with elements of the same hash values.
 --
--- The interface of a 'HashSet' is a suitable subset of 'Data.IntSet.IntSet'.
+-- The interface of a 'Set' is a suitable subset of 'Data.IntSet.IntSet'
+-- and can be used as a drop-in replacement of 'Data.Set.Set'.
 --
 -- The complexity of operations is determined by the complexities of
 -- 'Data.IntMap.IntMap' and 'Data.Set.Set' operations. See the sources of
--- 'HashSet' to see which operations from @containers@ package are used.
+-- 'Set' to see which operations from @containers@ package are used.
 -----------------------------------------------------------------------------
 
-module Data.HashSet ( HashSet
+module Data.HashSet ( Set
+                    , HashSet
 
                     -- * Operators
                     , (\\)
@@ -88,7 +91,7 @@ import qualified Data.Set as S
 --------------------------------------------------------------------}
 
 -- | Same as 'difference'.
-(\\) :: Ord a => HashSet a -> HashSet a -> HashSet a
+(\\) :: Ord a => Set a -> Set a -> Set a
 s1 \\ s2 = difference s1 s2
 
 
@@ -98,20 +101,20 @@ s1 \\ s2 = difference s1 s2
 
 data Some a = Only !a | More !(S.Set a) deriving (Eq, Ord)
 
--- | The abstract type of a @HashSet@. Its interface is a suitable
+-- | The abstract type of a @Set@. Its interface is a suitable
 -- subset of 'Data.IntSet.IntSet'.
-newtype HashSet a = HashSet (I.IntMap (Some a)) deriving (Eq, Ord)
+newtype Set a = Set (I.IntMap (Some a)) deriving (Eq, Ord)
 
-instance Ord a => Monoid (HashSet a) where
+instance Ord a => Monoid (Set a) where
   mempty  = empty
   mappend = union
   mconcat = unions
 
-instance Show a => Show (HashSet a) where
+instance Show a => Show (Set a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
-instance (Hashable a, Ord a, Read a) => Read (HashSet a) where
+instance (Hashable a, Ord a, Read a) => Read (Set a) where
 #ifdef __GLASGOW_HASKELL__
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
@@ -127,7 +130,7 @@ instance (Hashable a, Ord a, Read a) => Read (HashSet a) where
 #endif
 
 #include "Typeable.h"
-INSTANCE_TYPEABLE1(HashSet,hashSetTc,"HashSet")
+INSTANCE_TYPEABLE1(Set,setTc,"Set")
 
 
 #if __GLASGOW_HASKELL__
@@ -138,11 +141,11 @@ INSTANCE_TYPEABLE1(HashSet,hashSetTc,"HashSet")
 -- This instance preserves data abstraction at the cost of inefficiency.
 -- We omit reflection services for the sake of data abstraction.
 
-instance (Hashable a, Ord a, Data a) => Data (HashSet a) where
+instance (Hashable a, Ord a, Data a) => Data (Set a) where
   gfoldl f z m = z fromList `f` (toList m)
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
-  dataTypeOf _ = mkNoRepType "Data.HashSet.HashSet"
+  dataTypeOf _ = mkNoRepType "Data.HashSet.Set"
   dataCast1 f  = gcast1 f
 #endif
 
@@ -162,30 +165,30 @@ eq x y = x `compare` y == EQ
   Query
 --------------------------------------------------------------------}
 -- | Is the set empty?
-null :: HashSet a -> Bool
-null (HashSet s) = I.null s
+null :: Set a -> Bool
+null (Set s) = I.null s
 
 -- | Number of elements in the set.
-size :: HashSet a -> Int
-size (HashSet s) = I.fold ((+) . some_size) 0 s
+size :: Set a -> Int
+size (Set s) = I.fold ((+) . some_size) 0 s
   where some_size (Only _) = 1
         some_size (More t) = S.size t
 
 -- | Is the element a member of the set?
-member :: (Hashable a, Ord a) => a -> HashSet a -> Bool
-member a (HashSet s) =
+member :: (Hashable a, Ord a) => a -> Set a -> Bool
+member a (Set s) =
   case I.lookup (hash a) s of
     Nothing -> False
     Just (Only a') -> a `eq` a'
     Just (More s') -> S.member a s'
 
 -- | Is the element not a member of the set?
-notMember :: (Hashable a, Ord a) => a -> HashSet a -> Bool
+notMember :: (Hashable a, Ord a) => a -> Set a -> Bool
 notMember k s = not $ member k s
 
 -- | Is this a subset?
-isSubsetOf :: Ord a => HashSet a -> HashSet a -> Bool
-isSubsetOf (HashSet s1) (HashSet s2) =
+isSubsetOf :: Ord a => Set a -> Set a -> Bool
+isSubsetOf (Set s1) (Set s2) =
   I.isSubmapOfBy (some_isSubsetOf) s1 s2
   where some_isSubsetOf (Only a) (Only b) = a `eq` b
         some_isSubsetOf (Only a) (More s) = a `S.member` s
@@ -193,7 +196,7 @@ isSubsetOf (HashSet s1) (HashSet s2) =
         some_isSubsetOf (More s) (More t) = s `S.isSubsetOf` t
 
 -- | Is this a proper subset? (ie. a subset but not equal).
-isProperSubsetOf :: Ord a => HashSet a -> HashSet a -> Bool
+isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2 = isSubsetOf s1 s2 && size s1 < size s2
 
 
@@ -201,18 +204,18 @@ isProperSubsetOf s1 s2 = isSubsetOf s1 s2 && size s1 < size s2
   Construction
 --------------------------------------------------------------------}
 -- | The empty set.
-empty :: HashSet a
-empty = HashSet I.empty
+empty :: Set a
+empty = Set I.empty
 
 -- | A set of one element.
-singleton :: Hashable a => a -> HashSet a
-singleton a = HashSet $
+singleton :: Hashable a => a -> Set a
+singleton a = Set $
   I.singleton (hash a) $ Only a
 
 -- | Add a value to the set. When the value is already an element of the set,
 -- it is replaced by the new one, ie. 'insert' is left-biased.
-insert :: (Hashable a, Ord a) => a -> HashSet a -> HashSet a
-insert a (HashSet s) = HashSet $
+insert :: (Hashable a, Ord a) => a -> Set a -> Set a
+insert a (Set s) = Set $
   I.insertWith some_insert (hash a) (Only a) s
   where some_insert _ v@(Only b) | a `eq` b    = v
                                  | otherwise = More $ S.insert a (S.singleton b)
@@ -230,8 +233,8 @@ some_norm' s = case S.size s of 1 -> Only $ S.findMin s
 
 -- | Delete a value in the set. Returns the original set when the value was not
 -- present.
-delete :: (Hashable a, Ord a) => a -> HashSet a -> HashSet a
-delete a (HashSet s) = HashSet $
+delete :: (Hashable a, Ord a) => a -> Set a -> Set a
+delete a (Set s) = Set $
   I.update some_delete (hash a) s
   where some_delete v@(Only b) | a `eq` b  = Nothing
                                | otherwise = Just v
@@ -243,8 +246,8 @@ delete a (HashSet s) = HashSet $
 --------------------------------------------------------------------}
 
 -- | The union of two sets.
-union :: Ord a => HashSet a -> HashSet a -> HashSet a
-union (HashSet s1) (HashSet s2) = HashSet $ I.unionWith some_union s1 s2
+union :: Ord a => Set a -> Set a -> Set a
+union (Set s1) (Set s2) = Set $ I.unionWith some_union s1 s2
   where some_union v@(Only a) (Only b) | a `eq` b  = v
                                        | otherwise = More (S.singleton a `S.union` S.singleton b)
         some_union (Only a) (More s) = More $ S.singleton a `S.union` s
@@ -252,12 +255,12 @@ union (HashSet s1) (HashSet s2) = HashSet $ I.unionWith some_union s1 s2
         some_union (More s) (More t) = More $ s `S.union` t
 
 -- | The union of a list of sets.
-unions :: Ord a => [HashSet a] -> HashSet a
+unions :: Ord a => [Set a] -> Set a
 unions xs = foldl' union empty xs
 
 -- | Difference between two sets.
-difference :: Ord a => HashSet a -> HashSet a -> HashSet a
-difference (HashSet s1) (HashSet s2) = HashSet $
+difference :: Ord a => Set a -> Set a -> Set a
+difference (Set s1) (Set s2) = Set $
   I.differenceWith some_diff s1 s2
   where some_diff v@(Only a) (Only b) | a `eq` b  = Nothing
                                       | otherwise = Just v
@@ -277,8 +280,8 @@ delete_empty = I.filter some_empty
         some_empty (More s) = not $ S.null s
 
 -- | The intersection of two sets.
-intersection :: Ord a => HashSet a -> HashSet a -> HashSet a
-intersection (HashSet s1) (HashSet s2) = HashSet $ delete_empty $
+intersection :: Ord a => Set a -> Set a -> Set a
+intersection (Set s1) (Set s2) = Set $ delete_empty $
   I.intersectionWith some_intersection s1 s2
   where some_intersection v@(Only a) (Only b) | a `eq` b  = v
                                               | otherwise = More (S.empty)
@@ -293,8 +296,8 @@ intersection (HashSet s1) (HashSet s2) = HashSet $ delete_empty $
   Filter
 --------------------------------------------------------------------}
 -- | Filter all elements that satisfy some predicate.
-filter :: Ord a => (a -> Bool) -> HashSet a -> HashSet a
-filter p (HashSet s) = HashSet $
+filter :: Ord a => (a -> Bool) -> Set a -> Set a
+filter p (Set s) = Set $
   I.mapMaybe some_filter s
   where some_filter v@(Only a) | p a       = Just v
                                | otherwise = Nothing
@@ -303,7 +306,7 @@ filter p (HashSet s) = HashSet $
 -- | Partition the set according to some predicate. The first set contains all
 -- elements that satisfy the predicate, the second all elements that fail the
 -- predicate.
-partition :: Ord a => (a -> Bool) -> HashSet a -> (HashSet a, HashSet a)
+partition :: Ord a => (a -> Bool) -> Set a -> (Set a, Set a)
 partition p s = (filter p s, filter (not . p) s)
 
 
@@ -314,7 +317,7 @@ partition p s = (filter p s, filter (not . p) s)
 --
 -- It's worth noting that the size of the result may be smaller if, for some
 -- @(x,y)@, @x /= y && f x == f y@
-map :: (Hashable b, Ord b) => (a -> b) -> HashSet a -> HashSet b
+map :: (Hashable b, Ord b) => (a -> b) -> Set a -> Set b
 map f = fromList . fold ((:) . f) []
 
 
@@ -322,8 +325,8 @@ map f = fromList . fold ((:) . f) []
   Fold
 --------------------------------------------------------------------}
 -- | Fold over the elements of a set in an unspecified order.
-fold :: (a -> b -> b) -> b -> HashSet a -> b
-fold f z (HashSet s) = I.fold some_fold z s
+fold :: (a -> b -> b) -> b -> Set a -> b
+fold f z (Set s) = I.fold some_fold z s
   where some_fold (Only a) x = f a x
         some_fold (More t) x = S.fold f x t
 
@@ -332,15 +335,15 @@ fold f z (HashSet s) = I.fold some_fold z s
   Conversions
 --------------------------------------------------------------------}
 -- | The elements of a set. (For sets, this is equivalent to toList).
-elems :: HashSet a -> [a]
+elems :: Set a -> [a]
 elems = toList
 
 -- | Convert the set to a list of elements.
-toList :: HashSet a -> [a]
-toList (HashSet s) = I.fold some_append [] s
+toList :: Set a -> [a]
+toList (Set s) = I.fold some_append [] s
   where some_append (Only a) acc = a : acc
         some_append (More t) acc = S.toList t ++ acc
 
 -- | Create a set from a list of elements.
-fromList :: (Hashable a, Ord a) => [a] -> HashSet a
+fromList :: (Hashable a, Ord a) => [a] -> Set a
 fromList xs = foldl' (flip insert) empty xs

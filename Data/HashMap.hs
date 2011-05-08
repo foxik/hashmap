@@ -3,29 +3,32 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.HashMap
--- Copyright   :  (c) Milan Straka 2010
+-- Copyright   :  (c) Milan Straka 2011
 -- License     :  BSD-style
 -- Maintainer  :  fox@ucw.cz
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- Persistent 'HashMap', which is defined as
+-- Persistent 'Map' based on hashing, which is defined as
 --
 -- @
---   data 'HashMap' k v = 'Data.IntMap.IntMap' ('Data.Map.Map' k v)
+--   data 'Map' k v = 'Data.IntMap.IntMap' (Some k v)
 -- @
 --
 -- is an 'Data.IntMap.IntMap' indexed by hash values of keys,
--- containing a map @'Data.Map.Map' k v@ with keys of the same hash values.
+-- containing a value of @Some e@. That contains either one
+-- @('k', 'v')@ pair or a @'Data.Map.Map' k v@ with keys of the same hash values.
 --
--- The interface of a 'HashMap' is a suitable subset of 'Data.IntMap.IntMap'.
+-- The interface of a 'Map' is a suitable subset of 'Data.IntMap.IntMap'
+-- and can be used as a drop-in replacement of 'Data.Map.Map'.
 --
 -- The complexity of operations is determined by the complexities of
 -- 'Data.IntMap.IntMap' and 'Data.Map.Map' operations. See the sources of
--- 'HashMap' to see which operations from @containers@ package are used.
+-- 'Map' to see which operations from @containers@ package are used.
 -----------------------------------------------------------------------------
 
-module Data.HashMap ( HashMap
+module Data.HashMap ( Map
+                    , HashMap
 
                     -- * Operators
                     , (!), (\\)
@@ -139,13 +142,13 @@ import qualified Data.Set as S
 
 -- | Find the value at a key.
 -- Calls 'error' when the element can not be found.
-(!) :: (Hashable k, Ord k) => HashMap k a -> k -> a
+(!) :: (Hashable k, Ord k) => Map k a -> k -> a
 m ! k = case lookup k m of
           Nothing -> error "HashMap.(!): key not an element of the map"
           Just v -> v
 
 -- | Same as 'difference'.
-(\\) :: Ord k => HashMap k a -> HashMap k b -> HashMap k a
+(\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
 
 
@@ -155,33 +158,33 @@ m1 \\ m2 = difference m1 m2
 
 data Some k v = Only !k v | More !(M.Map k v) deriving (Eq, Ord)
 
--- | The abstract type of a @HashMap@. Its interface is a suitable
+-- | The abstract type of a @Map@. Its interface is a suitable
 -- subset of 'Data.IntMap.IntMap'.
-newtype HashMap k v = HashMap (I.IntMap (Some k v)) deriving (Eq, Ord)
+newtype Map k v = Map (I.IntMap (Some k v)) deriving (Eq, Ord)
 
-instance Functor (HashMap k) where
+instance Functor (Map k) where
   fmap = map
 
-instance Ord k => Monoid (HashMap k a) where
+instance Ord k => Monoid (Map k a) where
   mempty  = empty
   mappend = union
   mconcat = unions
 
-instance Foldable (HashMap k) where
-  foldMap f (HashMap m) = foldMap some_fold m
+instance Foldable (Map k) where
+  foldMap f (Map m) = foldMap some_fold m
     where some_fold (Only _ x) = f x
           some_fold (More s)   = foldMap f s
 
-instance Traversable (HashMap k) where
-  traverse f (HashMap m) = pure HashMap <*> traverse some_traverse m
+instance Traversable (Map k) where
+  traverse f (Map m) = pure Map <*> traverse some_traverse m
     where some_traverse (Only k x) = pure (Only k) <*> f x
           some_traverse (More s) = pure More <*> traverse f s
 
-instance (Show k, Show a) => Show (HashMap k a) where
+instance (Show k, Show a) => Show (Map k a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
-instance (Read k, Hashable k, Ord k, Read a) => Read (HashMap k a) where
+instance (Read k, Hashable k, Ord k, Read a) => Read (Map k a) where
 #ifdef __GLASGOW_HASKELL__
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
@@ -197,7 +200,7 @@ instance (Read k, Hashable k, Ord k, Read a) => Read (HashMap k a) where
 #endif
 
 #include "Typeable.h"
-INSTANCE_TYPEABLE2(HashMap,hashMapTc,"HashMap")
+INSTANCE_TYPEABLE2(Map,mapTc,"Map")
 
 
 
@@ -209,11 +212,11 @@ INSTANCE_TYPEABLE2(HashMap,hashMapTc,"HashMap")
 -- This instance preserves data abstraction at the cost of inefficiency.
 -- We omit reflection services for the sake of data abstraction.
 
-instance (Data k, Hashable k, Ord k, Data a) => Data (HashMap k a) where
+instance (Data k, Hashable k, Ord k, Data a) => Data (Map k a) where
   gfoldl f z m = z fromList `f` (toList m)
   toConstr _   = error "toConstr"
   gunfold _ _  = error "gunfold"
-  dataTypeOf _ = mkNoRepType "Data.HashMap.HashMap"
+  dataTypeOf _ = mkNoRepType "Data.HashMap.Map"
   dataCast1 f  = gcast1 f
 #endif
 
@@ -234,23 +237,23 @@ eq x y = x `compare` y == EQ
   Query
 --------------------------------------------------------------------}
 -- | Is the map empty?
-null :: HashMap k a -> Bool
-null (HashMap m) = I.null m
+null :: Map k a -> Bool
+null (Map m) = I.null m
 
 -- | Number of elements in the map.
-size :: HashMap k a -> Int
-size (HashMap m) = I.fold ((+) . some_size) 0 m
+size :: Map k a -> Int
+size (Map m) = I.fold ((+) . some_size) 0 m
   where some_size (Only _ _) = 1
         some_size (More s) = M.size s
 
 -- | Is the key a member of the map?
-member :: (Hashable k, Ord k) => k -> HashMap k a -> Bool
+member :: (Hashable k, Ord k) => k -> Map k a -> Bool
 member k m = case lookup k m of
                Nothing -> False
                Just _  -> True
 
 -- | Is the key not a member of the map?
-notMember :: (Hashable k, Ord k) => k -> HashMap k a -> Bool
+notMember :: (Hashable k, Ord k) => k -> Map k a -> Bool
 notMember k m = not $ member k m
 
 some_lookup :: Ord k => k -> Some k a -> Maybe a
@@ -259,12 +262,12 @@ some_lookup k (Only k' x) | k `eq` k' = Just x
 some_lookup k (More s) = M.lookup k s
 
 -- | Lookup the value at a key in the map.
-lookup :: (Hashable k, Ord k) => k -> HashMap k a -> Maybe a
-lookup k (HashMap m) = I.lookup (hash k) m >>= some_lookup k
+lookup :: (Hashable k, Ord k) => k -> Map k a -> Maybe a
+lookup k (Map m) = I.lookup (hash k) m >>= some_lookup k
 
 -- | The expression @('findWithDefault' def k map)@ returns the value at key
 -- @k@ or returns @def@ when the key is not an element of the map.
-findWithDefault :: (Hashable k, Ord k) => a -> k -> HashMap k a -> a
+findWithDefault :: (Hashable k, Ord k) => a -> k -> Map k a -> a
 findWithDefault def k m = case lookup k m of
                             Nothing -> def
                             Just x  -> x
@@ -274,12 +277,12 @@ findWithDefault def k m = case lookup k m of
   Construction
 --------------------------------------------------------------------}
 -- | The empty map.
-empty :: HashMap k a
-empty = HashMap I.empty
+empty :: Map k a
+empty = Map I.empty
 
 -- | A map of one element.
-singleton :: Hashable k => k -> a -> HashMap k a
-singleton k x = HashMap $
+singleton :: Hashable k => k -> a -> Map k a
+singleton k x = Map $
   I.singleton (hash k) $ (Only k x)
 
 
@@ -290,8 +293,8 @@ singleton k x = HashMap $
 -- the map, the associated value is replaced with the supplied value, i.e.
 -- 'insert' is equivalent to @'insertWith' 'const'@.
 insert :: (Hashable k, Ord k)
-       => k -> a -> HashMap k a -> HashMap k a
-insert k x (HashMap m) = HashMap $
+       => k -> a -> Map k a -> Map k a
+insert k x (Map m) = Map $
   I.insertWith some_insert (hash k) (Only k x) m
   where some_insert _ (Only k' x') | k `eq` k' = Only k x
                                    | otherwise = More $ M.insert k x (M.singleton k' x')
@@ -301,8 +304,8 @@ insert k x (HashMap m) = HashMap $
 -- insert the pair (key, value) into @mp@ if key does not exist in the map. If
 -- the key does exist, the function will insert @f new_value old_value@.
 insertWith :: (Hashable k, Ord k)
-           => (a -> a -> a) -> k -> a -> HashMap k a -> HashMap k a
-insertWith f k x (HashMap m) = HashMap $
+           => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWith f k x (Map m) = Map $
   I.insertWith some_insert_with (hash k) (Only k x) m
   where some_insert_with _ (Only k' x') | k `eq` k' = Only k (f x x')
                                         | otherwise = More $ M.insert k x (M.singleton k' x')
@@ -312,8 +315,8 @@ insertWith f k x (HashMap m) = HashMap $
 -- insert the pair (key, value) into @mp@ if key does not exist in the map. If
 -- the key does exist, the function will insert @f key new_value old_value@.
 insertWithKey :: (Hashable k, Ord k)
-              => (k -> a -> a -> a) -> k -> a -> HashMap k a -> HashMap k a
-insertWithKey f k x (HashMap m) = HashMap $
+              => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWithKey f k x (Map m) = Map $
   I.insertWith some_insert_with_key (hash k) (Only k x) m
   where some_insert_with_key _ (Only k' x') | k `eq` k' = Only k (f k x x')
                                             | otherwise = More $ M.insert k x (M.singleton k' x')
@@ -323,10 +326,10 @@ insertWithKey f k x (HashMap m) = HashMap $
 -- first element is equal to (@'lookup' k map@) and the second element equal to
 -- (@'insertWithKey' f k x map@).
 insertLookupWithKey :: (Hashable k, Ord k)
-                    => (k -> a -> a -> a) -> k -> a -> HashMap k a -> (Maybe a, HashMap k a)
-insertLookupWithKey f k x (HashMap m) =
+                    => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
+insertLookupWithKey f k x (Map m) =
   case I.insertLookupWithKey some_insert_with_key (hash k) (Only k x) m of
-    (found, m') -> (found >>= some_lookup k, HashMap m')
+    (found, m') -> (found >>= some_lookup k, Map m')
   where some_insert_with_key _ _ (Only k' x') | k `eq` k' = Only k (f k x x')
                                               | otherwise = More $ M.insert k x (M.singleton k' x')
         some_insert_with_key _ _ (More s) = More $ M.insertWithKey f k x s
@@ -348,8 +351,8 @@ some_norm' s = case M.size s of 1 -> case M.findMin s of (k, x) -> Only k x
 -- | Delete a key and its value from the map. When the key is not
 -- a member of the map, the original map is returned.
 delete :: (Hashable k, Ord k)
-       => k -> HashMap k a -> HashMap k a
-delete k (HashMap m) = HashMap $
+       => k -> Map k a -> Map k a
+delete k (Map m) = Map $
   I.update some_delete (hash k) m
   where some_delete v@(Only k' _) | k `eq` k'  = Nothing
                                   | otherwise  = Just v
@@ -358,8 +361,8 @@ delete k (HashMap m) = HashMap $
 -- | Adjust a value at a specific key. When the key is not a member of the map,
 -- the original map is returned.
 adjust :: (Hashable k, Ord k)
-       => (a -> a) -> k -> HashMap k a -> HashMap k a
-adjust f k (HashMap m) = HashMap $
+       => (a -> a) -> k -> Map k a -> Map k a
+adjust f k (Map m) = Map $
   I.adjust some_adjust (hash k) m
   where some_adjust v@(Only k' x) | k `eq` k'  = Only k (f x)
                                   | otherwise  = v
@@ -368,8 +371,8 @@ adjust f k (HashMap m) = HashMap $
 -- | Adjust a value at a specific key. When the key is not a member of the map,
 -- the original map is returned.
 adjustWithKey :: (Hashable k, Ord k)
-              => (k -> a -> a) -> k -> HashMap k a -> HashMap k a
-adjustWithKey f k (HashMap m) = HashMap $
+              => (k -> a -> a) -> k -> Map k a -> Map k a
+adjustWithKey f k (Map m) = Map $
   I.adjust some_adjust_with_key (hash k) m
   where some_adjust_with_key v@(Only k' x) | k `eq` k'  = Only k (f k x)
                                            | otherwise  = v
@@ -379,8 +382,8 @@ adjustWithKey f k (HashMap m) = HashMap $
 -- in the map). If (@f x@) is 'Nothing', the element is deleted. If it is
 -- (@'Just' y@), the key @k@ is bound to the new value @y@.
 update :: (Hashable k, Ord k)
-       => (a -> Maybe a) -> k -> HashMap k a -> HashMap k a
-update f k (HashMap m) = HashMap $
+       => (a -> Maybe a) -> k -> Map k a -> Map k a
+update f k (Map m) = Map $
   I.update some_update (hash k) m
   where some_update v@(Only k' x) | k `eq` k' = f x >>= return . Only k'
                                   | otherwise = Just v
@@ -390,8 +393,8 @@ update f k (HashMap m) = HashMap $
 -- in the map). If (@f k x@) is 'Nothing', the element is deleted. If it is
 -- (@'Just' y@), the key @k@ is bound to the new value @y@.
 updateWithKey :: (Hashable k, Ord k)
-              => (k -> a -> Maybe a) -> k -> HashMap k a -> HashMap k a
-updateWithKey f k (HashMap m) = HashMap $
+              => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
+updateWithKey f k (Map m) = Map $
   I.update some_update_with_key (hash k) m
   where some_update_with_key v@(Only k' x) | k `eq` k' = f k x >>= return . Only k'
                                            | otherwise = Just v
@@ -401,20 +404,20 @@ updateWithKey f k (HashMap m) = HashMap $
 -- This is different behavior than 'Data.Map.updateLookupWithKey'.  Returns the
 -- original key value if the map entry is deleted.
 updateLookupWithKey :: (Hashable k, Ord k)
-                    => (k -> a -> Maybe a) -> k -> HashMap k a -> (Maybe a, HashMap k a)
-updateLookupWithKey f k (HashMap m) =
+                    => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a, Map k a)
+updateLookupWithKey f k (Map m) =
   case I.updateLookupWithKey some_update_with_key (hash k) m of
-    (found, m') -> (found >>= some_lookup k, HashMap m')
+    (found, m') -> (found >>= some_lookup k, Map m')
   where some_update_with_key _ v@(Only k' x) | k `eq` k' = f k x >>= return . Only k'
                                              | otherwise = Just v
         some_update_with_key _ (More t) = some_norm $ M.updateWithKey f k t
 
 -- | The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence
 -- thereof.  'alter' can be used to insert, delete, or update a value in an
--- 'HashMap'.
+-- 'Map'.
 alter :: (Hashable k, Ord k)
-      => (Maybe a -> Maybe a) -> k -> HashMap k a -> HashMap k a
-alter f k (HashMap m) = HashMap $
+      => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+alter f k (Map m) = Map $
   I.alter some_alter (hash k) m
   where some_alter Nothing = f Nothing >>= return . Only k
         some_alter (Just v@(Only k' x)) | k `eq` k' = f (Just x) >>= return . Only k'
@@ -426,18 +429,18 @@ alter f k (HashMap m) = HashMap $
   Union
 --------------------------------------------------------------------}
 -- | The union of a list of maps.
-unions :: Ord k => [HashMap k a] -> HashMap k a
+unions :: Ord k => [Map k a] -> Map k a
 unions xs = foldl' union empty xs
 
 -- | The union of a list of maps, with a combining operation.
-unionsWith :: Ord k => (a->a->a) -> [HashMap k a] -> HashMap k a
+unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f xs = foldl' (unionWith f) empty xs
 
 -- | The (left-biased) union of two maps.
 -- It prefers the first map when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
-union :: Ord k => HashMap k a -> HashMap k a -> HashMap k a
-union (HashMap m1) (HashMap m2) = HashMap $
+union :: Ord k => Map k a -> Map k a -> Map k a
+union (Map m1) (Map m2) = Map $
   I.unionWith some_union m1 m2
   where some_union v@(Only k x) (Only l y) | k `eq` l  = v
                                            | otherwise = More (M.singleton k x `M.union` M.singleton l y)
@@ -453,21 +456,21 @@ some_union_with_key f (More t) (Only k x) = More $ M.unionWithKey f t (M.singlet
 some_union_with_key f (More t) (More u) = More $ M.unionWithKey f t u
 
 -- | The union with a combining function.
-unionWith :: Ord k => (a -> a -> a) -> HashMap k a -> HashMap k a -> HashMap k a
-unionWith f (HashMap m1) (HashMap m2) = HashMap $
+unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
+unionWith f (Map m1) (Map m2) = Map $
   I.unionWith (some_union_with_key $ const f) m1 m2
 
 -- | The union with a combining function.
-unionWithKey :: Ord k => (k -> a -> a -> a) -> HashMap k a -> HashMap k a -> HashMap k a
-unionWithKey f (HashMap m1) (HashMap m2) = HashMap $
+unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
+unionWithKey f (Map m1) (Map m2) = Map $
   I.unionWith (some_union_with_key f) m1 m2
 
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
 -- | Difference between two maps (based on keys).
-difference :: Ord k => HashMap k a -> HashMap k b -> HashMap k a
-difference (HashMap m1) (HashMap m2) = HashMap $
+difference :: Ord k => Map k a -> Map k b -> Map k a
+difference (Map m1) (Map m2) = Map $
   I.differenceWith some_diff m1 m2
   where some_diff v@(Only k _) (Only l _) | k `eq` l  = Nothing
                                           | otherwise = Just v
@@ -484,16 +487,16 @@ some_diff_with_key f (More t) (Only k x) = some_norm $ M.differenceWithKey f t (
 some_diff_with_key f (More t) (More u) = some_norm $ M.differenceWithKey f t u
 
 -- | Difference with a combining function.
-differenceWith :: Ord k => (a -> b -> Maybe a) -> HashMap k a -> HashMap k b -> HashMap k a
-differenceWith f (HashMap m1) (HashMap m2) = HashMap $
+differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
+differenceWith f (Map m1) (Map m2) = Map $
   I.differenceWith (some_diff_with_key $ const f) m1 m2
 
 -- | Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference).
 -- If it returns (@'Just' y@), the element is updated with a new value @y@.
-differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> HashMap k a -> HashMap k b -> HashMap k a
-differenceWithKey f (HashMap m1) (HashMap m2) = HashMap $
+differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
+differenceWithKey f (Map m1) (Map m2) = Map $
   I.differenceWith (some_diff_with_key f) m1 m2
 
 
@@ -506,8 +509,8 @@ delete_empty = I.filter some_empty
         some_empty (More t) = not $ M.null t
 
 -- | The (left-biased) intersection of two maps (based on keys).
-intersection :: Ord k => HashMap k a -> HashMap k b -> HashMap k a
-intersection (HashMap m1) (HashMap m2) = HashMap $ delete_empty $
+intersection :: Ord k => Map k a -> Map k b -> Map k a
+intersection (Map m1) (Map m2) = Map $ delete_empty $
   I.intersectionWith some_intersection m1 m2
   where some_intersection v@(Only k _) (Only l _) | k `eq` l  = v
                                                   | otherwise = More (M.empty)
@@ -524,13 +527,13 @@ some_intersection_with_key f (More t) (Only k x) = some_norm' $ M.intersectionWi
 some_intersection_with_key f (More t) (More u) = some_norm' $ M.intersectionWithKey f t u
 
 -- | The intersection with a combining function.
-intersectionWith :: Ord k => (a -> b -> c) -> HashMap k a -> HashMap k b -> HashMap k c
-intersectionWith f (HashMap m1) (HashMap m2) = HashMap $ delete_empty $
+intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
+intersectionWith f (Map m1) (Map m2) = Map $ delete_empty $
   I.intersectionWith (some_intersection_with_key $ const f) m1 m2
 
 -- | The intersection with a combining function.
-intersectionWithKey :: Ord k => (k -> a -> b -> c) -> HashMap k a -> HashMap k b -> HashMap k c
-intersectionWithKey f (HashMap m1) (HashMap m2) = HashMap $ delete_empty $
+intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
+intersectionWithKey f (Map m1) (Map m2) = Map $ delete_empty $
   I.intersectionWith (some_intersection_with_key f) m1 m2
 
 
@@ -538,19 +541,19 @@ intersectionWithKey f (HashMap m1) (HashMap m2) = HashMap $ delete_empty $
   Submap
 --------------------------------------------------------------------}
 -- | Is this a proper submap? (ie. a submap but not equal).
-isProperSubmapOf :: (Ord k, Eq a) => HashMap k a -> HashMap k a -> Bool
+isProperSubmapOf :: (Ord k, Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2 = isSubmapOf m1 m2 && size m1 < size m2
 
 -- | Is this a proper submap? (ie. a submap but not equal).  The expression
 -- (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when @m1@ and @m2@ are not
 -- equal, all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
 -- applied to their respective values.
-isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> HashMap k a -> HashMap k b -> Bool
+isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f m1 m2 = isSubmapOfBy f m1 m2 && size m1 < size m2
 
 -- | Is this a submap?
-isSubmapOf :: (Ord k, Eq a) => HashMap k a -> HashMap k a -> Bool
-isSubmapOf (HashMap m1) (HashMap m2) =
+isSubmapOf :: (Ord k, Eq a) => Map k a -> Map k a -> Bool
+isSubmapOf (Map m1) (Map m2) =
   I.isSubmapOfBy some_isSubmapOf m1 m2
   where some_isSubmapOf (Only k _) (Only l _) = k `eq` l
         some_isSubmapOf (Only k _) (More t)   = k `M.member` t
@@ -560,8 +563,8 @@ isSubmapOf (HashMap m1) (HashMap m2) =
 -- | The expression (@'isSubmapOfBy' f m1 m2@) returns 'True' if all keys in
 -- @m1@ are in @m2@, and when @f@ returns 'True' when applied to their
 -- respective values.
-isSubmapOfBy :: Ord k => (a -> b -> Bool) -> HashMap k a -> HashMap k b -> Bool
-isSubmapOfBy f (HashMap m1) (HashMap m2) =
+isSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
+isSubmapOfBy f (Map m1) (Map m2) =
   I.isSubmapOfBy some_isSubmapOfBy m1 m2
   where some_isSubmapOfBy (Only k x) (Only l y) = k `eq` l && x `f` y
         some_isSubmapOfBy (Only k x) (More t) | Just y <- M.lookup k t = f x y
@@ -574,34 +577,34 @@ isSubmapOfBy f (HashMap m1) (HashMap m2) =
   Mapping
 --------------------------------------------------------------------}
 -- | Map a function over all values in the map.
-map :: (a -> b) -> HashMap k a -> HashMap k b
-map f (HashMap m) = HashMap $
+map :: (a -> b) -> Map k a -> Map k b
+map f (Map m) = Map $
   I.map some_map m
   where some_map (Only k x) = Only k $ f x
         some_map (More t)   = More $ M.map f t
 
 -- | Map a function over all values in the map.
-mapWithKey :: (k -> a -> b) -> HashMap k a -> HashMap k b
-mapWithKey f (HashMap m) = HashMap $
+mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
+mapWithKey f (Map m) = Map $
   I.map some_map_with_key m
   where some_map_with_key (Only k x) = Only k $ f k x
         some_map_with_key (More t)   = More $ M.mapWithKey f t
 
 -- | The function @'mapAccum'@ threads an accumulating argument through the map
 -- in unspecified order of keys.
-mapAccum :: (a -> b -> (a,c)) -> a -> HashMap k b -> (a,HashMap k c)
-mapAccum f a (HashMap m) =
+mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+mapAccum f a (Map m) =
   case I.mapAccum some_map_accum a m of
-    (acc, m') -> (acc, HashMap m')
+    (acc, m') -> (acc, Map m')
   where some_map_accum acc (Only k x) = case f acc x of (acc', x') -> (acc', Only k x')
         some_map_accum acc (More t)   = case M.mapAccum f acc t of (acc', t') -> (acc', More t')
 
 -- | The function @'mapAccumWithKey'@ threads an accumulating argument through
 -- the map in unspecified order of keys.
-mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> HashMap k b -> (a,HashMap k c)
-mapAccumWithKey f a (HashMap m) =
+mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+mapAccumWithKey f a (Map m) =
   case I.mapAccum some_map_accum_with_key a m of
-    (acc, m') -> (acc, HashMap m')
+    (acc, m') -> (acc, Map m')
   where some_map_accum_with_key acc (Only k x) = case f acc k x of (acc', x') -> (acc', Only k x')
         some_map_accum_with_key acc (More t)   = case M.mapAccumWithKey f acc t of (acc', t') -> (acc', More t')
 
@@ -610,16 +613,16 @@ mapAccumWithKey f a (HashMap m) =
   Filter
 --------------------------------------------------------------------}
 -- | Filter all values that satisfy some predicate.
-filter :: Ord k => (a -> Bool) -> HashMap k a -> HashMap k a
-filter p (HashMap m) = HashMap $
+filter :: Ord k => (a -> Bool) -> Map k a -> Map k a
+filter p (Map m) = Map $
   I.mapMaybe some_filter m
   where some_filter v@(Only _ x) | p x       = Just v
                                  | otherwise = Nothing
         some_filter (More t) = some_norm $ M.filter p t
 
 -- | Filter all keys\/values that satisfy some predicate.
-filterWithKey :: Ord k => (k -> a -> Bool) -> HashMap k a -> HashMap k a
-filterWithKey p (HashMap m) = HashMap $
+filterWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> Map k a
+filterWithKey p (Map m) = Map $
   I.mapMaybe some_filter_with_key m
   where some_filter_with_key v@(Only k x) | p k x     = Just v
                                           | otherwise = Nothing
@@ -628,35 +631,35 @@ filterWithKey p (HashMap m) = HashMap $
 -- | Partition the map according to some predicate. The first map contains all
 -- elements that satisfy the predicate, the second all elements that fail the
 -- predicate.
-partition :: Ord k => (a -> Bool) -> HashMap k a -> (HashMap k a, HashMap k a)
+partition :: Ord k => (a -> Bool) -> Map k a -> (Map k a, Map k a)
 partition p m = (filter p m, filter (not . p) m)
 
 -- | Partition the map according to some predicate. The first map contains all
 -- elements that satisfy the predicate, the second all elements that fail the
 -- predicate.
-partitionWithKey :: Ord k => (k -> a -> Bool) -> HashMap k a -> (HashMap k a, HashMap k a)
+partitionWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> (Map k a, Map k a)
 partitionWithKey p m = (filterWithKey p m, filterWithKey (\k -> not . p k) m)
 
 -- | Map values and collect the 'Just' results.
-mapMaybe :: Ord k => (a -> Maybe b) -> HashMap k a -> HashMap k b
-mapMaybe f (HashMap m) = HashMap $
+mapMaybe :: Ord k => (a -> Maybe b) -> Map k a -> Map k b
+mapMaybe f (Map m) = Map $
   I.mapMaybe some_map_maybe m
   where some_map_maybe (Only k x) = f x >>= return . Only k
         some_map_maybe (More t) = some_norm $ M.mapMaybe f t
 
 -- | Map keys\/values and collect the 'Just' results.
-mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> HashMap k a -> HashMap k b
-mapMaybeWithKey f (HashMap m) = HashMap $
+mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> Map k a -> Map k b
+mapMaybeWithKey f (Map m) = Map $
   I.mapMaybe some_map_maybe_with_key m
   where some_map_maybe_with_key (Only k x) = f k x >>= return . Only k
         some_map_maybe_with_key (More t) = some_norm $ M.mapMaybeWithKey f t
 
 -- | Map values and separate the 'Left' and 'Right' results.
-mapEither :: Ord k => (a -> Either b c) -> HashMap k a -> (HashMap k b, HashMap k c)
+mapEither :: Ord k => (a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEither f m = (mapMaybe (maybe_left . f) m, mapMaybe (maybe_right . f) m)
 
 -- | Map keys\/values and separate the 'Left' and 'Right' results.
-mapEitherWithKey :: Ord k => (k -> a -> Either b c) -> HashMap k a -> (HashMap k b, HashMap k c)
+mapEitherWithKey :: Ord k => (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey f m = (mapMaybeWithKey (\k a -> maybe_left  (f k a)) m
                        ,mapMaybeWithKey (\k a -> maybe_right (f k a)) m)
 
@@ -675,15 +678,15 @@ maybe_right (Left _) = Nothing
 --------------------------------------------------------------------}
 -- | Fold the values in the map, such that @'fold' f z == 'Prelude.foldr'
 -- f z . 'elems'@.
-fold :: (a -> b -> b) -> b -> HashMap k a -> b
-fold f z (HashMap m) = I.fold some_fold z m
+fold :: (a -> b -> b) -> b -> Map k a -> b
+fold f z (Map m) = I.fold some_fold z m
   where some_fold (Only _ x) y = f x y
         some_fold (More t) y   = M.fold f y t
 
 -- | Fold the keys and values in the map, such that @'foldWithKey' f z ==
 -- 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
-foldWithKey :: (k -> a -> b -> b) -> b -> HashMap k a -> b
-foldWithKey f z (HashMap m) = I.fold some_fold_with_key z m
+foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
+foldWithKey f z (Map m) = I.fold some_fold_with_key z m
   where some_fold_with_key (Only k x) y = f k x y
         some_fold_with_key (More t) y   = M.foldWithKey f y t
 
@@ -692,25 +695,25 @@ foldWithKey f z (HashMap m) = I.fold some_fold_with_key z m
   List variations
 --------------------------------------------------------------------}
 -- | Return all elements of the map in arbitrary order of their keys.
-elems :: HashMap k a -> [a]
-elems (HashMap m) = I.fold some_append_elems [] m
+elems :: Map k a -> [a]
+elems (Map m) = I.fold some_append_elems [] m
   where some_append_elems (Only _ x) acc = x : acc
         some_append_elems (More t) acc   = M.elems t ++ acc
 
 -- | Return all keys of the map in arbitrary order.
-keys  :: HashMap k a -> [k]
-keys (HashMap m) = I.fold some_append_keys [] m
+keys  :: Map k a -> [k]
+keys (Map m) = I.fold some_append_keys [] m
   where some_append_keys (Only k _) acc = k : acc
         some_append_keys (More t) acc   = M.keys t ++ acc
 
 -- | The set of all keys of the map.
-keysSet :: Ord k => HashMap k a -> S.Set k
-keysSet (HashMap m) = I.fold (S.union . some_keys_set) S.empty m
+keysSet :: Ord k => Map k a -> S.Set k
+keysSet (Map m) = I.fold (S.union . some_keys_set) S.empty m
   where some_keys_set (Only k _) = S.singleton k
         some_keys_set (More t)   = M.keysSet t
 
 -- | Return all key\/value pairs in the map in arbitrary key order.
-assocs :: HashMap k a -> [(k,a)]
+assocs :: Map k a -> [(k,a)]
 assocs = toList
 
 
@@ -718,21 +721,21 @@ assocs = toList
   Lists
 --------------------------------------------------------------------}
 -- | Convert the map to a list of key\/value pairs.
-toList :: HashMap k a -> [(k,a)]
-toList (HashMap m) =
+toList :: Map k a -> [(k,a)]
+toList (Map m) =
   I.fold some_append [] m
   where some_append (Only k x) acc = (k, x) : acc
         some_append (More t) acc   = M.toList t ++ acc
 
 -- | Create a map from a list of key\/value pairs.
 fromList :: (Hashable k, Ord k)
-         => [(k,a)] -> HashMap k a
+         => [(k,a)] -> Map k a
 fromList xs = foldl' (\m (k, x) -> insert k x m) empty xs
 
 -- | Create a map from a list of key\/value pairs with a combining function.
-fromListWith :: (Hashable k, Ord k) => (a -> a -> a) -> [(k,a)] -> HashMap k a
+fromListWith :: (Hashable k, Ord k) => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs = foldl' (\m (k, x) -> insertWith f k x m) empty xs
 
 -- | Build a map from a list of key\/value pairs with a combining function.
-fromListWithKey :: (Hashable k, Ord k) => (k -> a -> a -> a) -> [(k,a)] -> HashMap k a
+fromListWithKey :: (Hashable k, Ord k) => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromListWithKey f xs = foldl' (\m (k, x) -> insertWithKey f k x m) empty xs
