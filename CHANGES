@@ -1,3 +1,12 @@
+= Version 1.2.0.0, 2011-05-08 =
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Rename HashMap and HashSet to Map and Set.
+That allows to use this package as a drop-in
+replacement for Data.Map and Data.Set packages.
+HashMap and HashSet types are kept as deprecated
+type synonyms.
+
+
 = Version 1.1.0.1, 2011-04-19 =
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 * Convert the repository to Git.
