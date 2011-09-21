@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP, PatternGuards #-}
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.HashMap
@@ -572,8 +570,9 @@ isSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f (Map m1) (Map m2) =
   I.isSubmapOfBy some_isSubmapOfBy m1 m2
   where some_isSubmapOfBy (Only k x) (Only l y) = k `eq` l && x `f` y
-        some_isSubmapOfBy (Only k x) (More t) | Just y <- M.lookup k t = f x y
-                                              | otherwise              = False
+        some_isSubmapOfBy (Only k x) (More t) = case M.lookup k t of
+                                                  Just y -> f x y
+                                                  _      -> False
         some_isSubmapOfBy (More _) (Only _ _) = False
         some_isSubmapOfBy (More t) (More u)   = M.isSubmapOfBy f t u
 
