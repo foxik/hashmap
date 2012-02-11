@@ -69,6 +69,7 @@ module Data.HashSet ( Set
 
 import Prelude hiding (lookup,map,filter,null)
 
+import Control.DeepSeq
 import Data.Hashable
 import Data.List (foldl')
 import Data.Monoid (Monoid(..))
@@ -98,6 +99,10 @@ s1 \\ s2 = difference s1 s2
 
 data Some a = Only !a | More !(S.Set a) deriving (Eq, Ord)
 
+instance NFData a => NFData (Some a) where
+  rnf (Only a) = rnf a
+  rnf (More s) = rnf s
+
 -- | The abstract type of a @Set@. Its interface is a suitable
 -- subset of 'Data.IntSet.IntSet'.
 newtype Set a = Set (I.IntMap (Some a)) deriving (Eq, Ord)
@@ -106,6 +111,9 @@ newtype Set a = Set (I.IntMap (Some a)) deriving (Eq, Ord)
 -- It is deprecated and will be removed in furture releases.
 {-# DEPRECATED HashSet "HashSet is deprecated. Please use Set instead." #-}
 type HashSet a = Set a
+
+instance NFData a => NFData (Set a) where
+  rnf (Set s) = rnf s
 
 instance Ord a => Monoid (Set a) where
   mempty  = empty

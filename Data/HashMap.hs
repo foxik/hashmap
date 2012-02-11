@@ -117,6 +117,7 @@ module Data.HashMap ( Map
 import Prelude hiding (lookup,map,filter,null)
 
 import Control.Applicative (Applicative(pure,(<*>)))
+import Control.DeepSeq
 import Data.Hashable
 import Data.Foldable (Foldable(foldMap))
 import Data.List (foldl')
@@ -156,6 +157,10 @@ m1 \\ m2 = difference m1 m2
 
 data Some k v = Only !k v | More !(M.Map k v) deriving (Eq, Ord)
 
+instance (NFData k, NFData v) => NFData (Some k v) where
+  rnf (Only k v) = rnf k `seq` rnf v
+  rnf (More m) = rnf m
+
 -- | The abstract type of a @Map@. Its interface is a suitable
 -- subset of 'Data.IntMap.IntMap'.
 newtype Map k v = Map (I.IntMap (Some k v)) deriving (Eq, Ord)
@@ -164,6 +169,9 @@ newtype Map k v = Map (I.IntMap (Some k v)) deriving (Eq, Ord)
 -- It is deprecated and will be removed in furture releases.
 {-# DEPRECATED HashMap "HashMap is deprecated. Please use Map instead." #-}
 type HashMap k v = Map k v
+
+instance (NFData k, NFData v) => NFData (Map k v) where
+  rnf (Map m) = rnf m
 
 instance Functor (Map k) where
   fmap = map
