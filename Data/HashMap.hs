@@ -210,7 +210,7 @@ instance (Read k, Hashable k, Ord k, Read a) => Read (Map k a) where
     return (fromList xs,t)
 #endif
 
-#include "Typeable.h"
+#include "hashmap.h"
 INSTANCE_TYPEABLE2(Map,mapTc,"Map")
 
 

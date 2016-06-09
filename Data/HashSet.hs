@@ -139,7 +139,7 @@ instance (Hashable a, Ord a, Read a) => Read (Set a) where
     return (fromList xs,t)
 #endif
 
-#include "Typeable.h"
+#include "hashmap.h"
 INSTANCE_TYPEABLE1(Set,setTc,"Set")
 
 
