@@ -17,7 +17,7 @@ Description:         An implementation of persistent 'Map' and 'Set' containers
                      The @'Set' elem@ is an 'Data.IntMap.IntMap' indexed by
                      the hash value, containing either one 'elem' or @'Data.Set.Set' elem@ for
                      all elements with the same hash value.
-Homepage:            http://git.auryn.cz/haskell/hashmap/
+Homepage:            http://github.com/foxik/hashmap/
 License:             BSD3
 License-file:        LICENSE
 Author:              Milan Straka
