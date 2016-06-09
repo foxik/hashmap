@@ -1,5 +1,5 @@
 Name:                hashmap
-Version:             1.3.0.1
+Version:             1.3.1
 Synopsis:            Persistent containers Map and Set based on hashing.
 Description:         An implementation of persistent 'Map' and 'Set' containers
                      based on hashing. The implementation is build on
@@ -17,16 +17,29 @@ Description:         An implementation of persistent 'Map' and 'Set' containers
                      The @'Set' elem@ is an 'Data.IntMap.IntMap' indexed by
                      the hash value, containing either one 'elem' or @'Data.Set.Set' elem@ for
                      all elements with the same hash value.
-Homepage:            http://github.com/foxik/hashmap/
+Homepage:            https://github.com/foxik/hashmap
+bug-reports:         https://github.com/foxik/hashmap/issues
 License:             BSD3
 License-file:        LICENSE
 Author:              Milan Straka
-Maintainer:          fox@ucw.cz
+Maintainer:          Ryan Scott <ryan.gl.scott@gmail.com>
 Stability:           Provisional
+copyright:           (C) 2011-2012 Milan Straka, 2016 Ryan Scott
 Category:            Data
 Build-type:          Simple
 Cabal-version:       >= 1.6
-Extra-source-files:  CHANGES
+Extra-source-files:  CHANGES, README.md
+tested-with:         GHC == 7.0.4
+                   , GHC == 7.2.2
+                   , GHC == 7.4.2
+                   , GHC == 7.6.3
+                   , GHC == 7.8.4
+                   , GHC == 7.10.3
+                   , GHC == 8.0.1
+
+source-repository head
+  type: git
+  location: https://github.com/foxik/hashmap
 
 Flag OldContainers
   Description: Use old version of containers where NFData instances are provided by deepseq.
@@ -34,7 +47,7 @@ Flag OldContainers
 
 Library
   Exposed-modules: Data.HashMap, Data.HashSet
-  Include-dirs: include
+  include-dirs: include
 
   Build-depends: base >= 4.0 && < 5, hashable >= 1.0
   if !flag(OldContainers)
