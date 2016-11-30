@@ -180,7 +180,7 @@ null (Set s) = I.null s
 
 -- | Number of elements in the set.
 size :: Set a -> Int
-size (Set s) = I.fold ((+) . some_size) 0 s
+size (Set s) = ifoldr ((+) . some_size) 0 s
   where some_size (Only _) = 1
         some_size (More t) = S.size t
 
@@ -336,9 +336,19 @@ map f = fromList . fold ((:) . f) []
 --------------------------------------------------------------------}
 -- | Fold over the elements of a set in an unspecified order.
 fold :: (a -> b -> b) -> b -> Set a -> b
-fold f z (Set s) = I.fold some_fold z s
+fold f z (Set s) = ifoldr some_fold z s
   where some_fold (Only a) x = f a x
-        some_fold (More t) x = S.fold f x t
+        some_fold (More t) x = sfoldr f x t
+
+ifoldr :: (a -> b -> b) -> b -> I.IntMap a -> b
+sfoldr :: (a -> b -> b) -> b -> S.Set a -> b
+#if MIN_VERSION_containers(0,5,0)
+ifoldr = I.foldr
+sfoldr = S.foldr
+#else
+ifoldr = I.fold
+sfoldr = S.fold
+#endif
 
 
 {--------------------------------------------------------------------
@@ -350,7 +360,7 @@ elems = toList
 
 -- | Convert the set to a list of elements.
 toList :: Set a -> [a]
-toList (Set s) = I.fold some_append [] s
+toList (Set s) = ifoldr some_append [] s
   where some_append (Only a) acc = a : acc
         some_append (More t) acc = S.toList t ++ acc
 

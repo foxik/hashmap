@@ -253,7 +253,7 @@ null (Map m) = I.null m
 
 -- | Number of elements in the map.
 size :: Map k a -> Int
-size (Map m) = I.fold ((+) . some_size) 0 m
+size (Map m) = ifoldr ((+) . some_size) 0 m
   where some_size (Only _ _) = 1
         some_size (More s) = M.size s
 
@@ -691,36 +691,45 @@ maybe_right (Left _) = Nothing
 -- | Fold the values in the map, such that @'fold' f z == 'Prelude.foldr'
 -- f z . 'elems'@.
 fold :: (a -> b -> b) -> b -> Map k a -> b
-fold f z (Map m) = I.fold some_fold z m
+fold f z (Map m) = ifoldr some_fold z m
   where some_fold (Only _ x) y = f x y
-        some_fold (More t) y   = M.fold f y t
+        some_fold (More t) y   = mfoldr f y t
 
 -- | Fold the keys and values in the map, such that @'foldWithKey' f z ==
 -- 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldWithKey f z (Map m) = I.fold some_fold_with_key z m
+foldWithKey f z (Map m) = ifoldr some_fold_with_key z m
   where some_fold_with_key (Only k x) y = f k x y
-        some_fold_with_key (More t) y   = M.foldWithKey f y t
+        some_fold_with_key (More t) y   = M.foldrWithKey f y t
 
+mfoldr :: (a -> b -> b) -> b -> M.Map k a -> b
+ifoldr :: (a -> b -> b) -> b -> I.IntMap a -> b
+#if MIN_VERSION_containers(0,5,0)
+mfoldr = M.foldr
+ifoldr = I.foldr
+#else
+mfoldr = M.fold
+ifoldr = I.fold
+#endif
 
 {--------------------------------------------------------------------
   List variations
 --------------------------------------------------------------------}
 -- | Return all elements of the map in arbitrary order of their keys.
 elems :: Map k a -> [a]
-elems (Map m) = I.fold some_append_elems [] m
+elems (Map m) = ifoldr some_append_elems [] m
   where some_append_elems (Only _ x) acc = x : acc
         some_append_elems (More t) acc   = M.elems t ++ acc
 
 -- | Return all keys of the map in arbitrary order.
 keys  :: Map k a -> [k]
-keys (Map m) = I.fold some_append_keys [] m
+keys (Map m) = ifoldr some_append_keys [] m
   where some_append_keys (Only k _) acc = k : acc
         some_append_keys (More t) acc   = M.keys t ++ acc
 
 -- | The set of all keys of the map.
 keysSet :: Ord k => Map k a -> S.Set k
-keysSet (Map m) = I.fold (S.union . some_keys_set) S.empty m
+keysSet (Map m) = ifoldr (S.union . some_keys_set) S.empty m
   where some_keys_set (Only k _) = S.singleton k
         some_keys_set (More t)   = M.keysSet t
 
@@ -735,7 +744,7 @@ assocs = toList
 -- | Convert the map to a list of key\/value pairs.
 toList :: Map k a -> [(k,a)]
 toList (Map m) =
-  I.fold some_append [] m
+  ifoldr some_append [] m
   where some_append (Only k x) acc = (k, x) : acc
         some_append (More t) acc   = M.toList t ++ acc
 
