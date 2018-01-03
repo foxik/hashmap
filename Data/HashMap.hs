@@ -122,6 +122,9 @@ import Data.Hashable
 import Data.Foldable (Foldable(foldMap))
 import Data.List (foldl')
 import Data.Monoid (Monoid(..))
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+#endif
 import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 
@@ -178,8 +181,16 @@ instance Functor (Map k) where
 
 instance Ord k => Monoid (Map k a) where
   mempty  = empty
-  mappend = union
   mconcat = unions
+#if !(MIN_VERSION_base(4,9,0))
+  mappend = union
+#else
+  mappend = (<>)
+
+instance Ord k => Semigroup (Map k a) where
+  (<>)   = union
+  stimes = stimesIdempotentMonoid
+#endif
 
 instance Foldable (Map k) where
   foldMap f (Map m) = foldMap some_fold m

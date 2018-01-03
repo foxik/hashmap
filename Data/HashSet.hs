@@ -73,6 +73,9 @@ import Control.DeepSeq
 import Data.Hashable
 import Data.List (foldl')
 import Data.Monoid (Monoid(..))
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+#endif
 import Data.Typeable
 
 #if __GLASGOW_HASKELL__
@@ -117,8 +120,16 @@ instance NFData a => NFData (Set a) where
 
 instance Ord a => Monoid (Set a) where
   mempty  = empty
-  mappend = union
   mconcat = unions
+#if !(MIN_VERSION_base(4,9,0))
+  mappend = union
+#else
+  mappend = (<>)
+
+instance Ord a => Semigroup (Set a) where
+  (<>)   = union
+  stimes = stimesIdempotentMonoid
+#endif
 
 instance Show a => Show (Set a) where
   showsPrec d m   = showParen (d > 10) $
