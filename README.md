@@ -3,7 +3,7 @@
 [![Hackage Dependencies](https://img.shields.io/hackage-deps/v/hashmap.svg)](http://packdeps.haskellers.com/reverse/hashmap)
 [![Haskell Programming Language](https://img.shields.io/badge/language-Haskell-blue.svg)][Haskell.org]
 [![BSD3 License](http://img.shields.io/badge/license-BSD3-brightgreen.svg)][tl;dr Legal: BSD3]
-[![Build](https://img.shields.io/travis/foxik/hashmap.svg)](https://travis-ci.org/foxik/hashmap)
+[![Build Status](https://github.com/foxik/hashmap/workflows/Haskell-CI/badge.svg)](https://github.com/foxik/hashmap/actions?query=workflow%3AHaskell-CI)
 
 [Hackage: hashmap]:
   http://hackage.haskell.org/package/hashmap
