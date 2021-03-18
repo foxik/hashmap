@@ -27,7 +27,7 @@ Stability:           Provisional
 copyright:           (C) 2011-2012 Milan Straka, 2016 Ryan Scott
 Category:            Data
 Build-type:          Simple
-Cabal-version:       >= 1.6
+Cabal-version:       >= 1.10
 Extra-source-files:  CHANGES, README.md, include/*.h
 tested-with:         GHC == 7.0.4
                    , GHC == 7.2.2
@@ -61,6 +61,7 @@ Library
   else
     Build-depends: containers >= 0.3, deepseq >= 1.0 && < 1.2
 
-  Extensions: CPP
+  default-extensions: CPP
   if impl(ghc)
-    Extensions: StandaloneDeriving, DeriveDataTypeable
+    default-extensions: StandaloneDeriving, DeriveDataTypeable
+  default-language: Haskell2010
